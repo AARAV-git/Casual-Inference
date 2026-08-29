@@ -1,0 +1,27 @@
+# --- Web framework ---
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# --- Settings / env ---
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-dotenv==1.0.1
+
+# --- Database ---
+sqlalchemy==2.0.35
+psycopg2-binary==2.9.9
+alembic==1.13.2
+
+# --- Data / ML / causal ---
+pandas==2.2.3
+pyarrow==17.0.0
+numpy<2.0.0,>=1.23.2
+scikit-learn==1.5.2
+econml==0.15.1        # Doubly Robust + Causal Forest estimators
+torch==2.4.1           # Transformer user-encoder (Sec. 6, Phase 5-6)
+
+# --- Experiment tracking ---
+mlflow==2.16.2
+
+# --- WebSocket (already pulled by uvicorn[standard], listed for clarity) ---
+websockets==13.1

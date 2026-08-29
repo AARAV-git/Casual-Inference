@@ -1,0 +1,46 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: causal_personalization_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-causal_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      POSTGRES_DB: ${POSTGRES_DB:-causal_personalization}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # backend waits for this to pass before it starts (see depends_on below)
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-causal_admin} -d ${POSTGRES_DB:-causal_personalization}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    container_name: causal_personalization_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Inside Docker, the DB is reachable by service name, not localhost
+      POSTGRES_HOST: db
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app                # live-reload during development
+      - ./data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy   # backend won't boot until Postgres is accepting connections
+    command: >
+      sh -c "python scripts/init_db.py &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+volumes:
+  pgdata:
+    driver: local
