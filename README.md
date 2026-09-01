@@ -1,5 +1,5 @@
-# Causal Personalization & User Behavior Modeling under Behavioral Drift
-> **A Production-Grade Causal Machine Learning & Deep Representation Learning Framework for OTT User Retention, Value-Based Interventions, and Counterfactual Policy Optimization**
+# 🎯 Causal Personalization for OTT Platforms
+### Modeling *why* users stay, not just *that* they stayed
 
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch 2.4](https://img.shields.io/badge/PyTorch-2.4-EE4C2C?style=flat&logo=pytorch&logoColor=white)](https://pytorch.org/)
@@ -7,122 +7,95 @@
 [![FastAPI 0.115](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![PostgreSQL 16](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![MLflow 2.16](https://img.shields.io/badge/MLflow-2.16-0194E2?style=flat&logo=mlflow&logoColor=white)](https://mlflow.org/)
-[![Docker Compose](https://img.shields.io/badge/Docker-Enabled-2496ED?style=flat&logo=docker&logoColor=white)](https://www.docker.com/)
 
 ---
 
-## 📌 Executive Summary
+## ⚡ TL;DR
 
-This repository presents an end-to-end research and production platform engineered for **User Behavior Modeling and Causal Interventions on Over-The-Top (OTT) Streaming Platforms**.
+Most recommendation systems optimize for clicks and watch-time — signals that are *correlated* with retention, not *causal* to it. This project asks a harder question: **if we change what we show a user, or when we notify them, what actually happens to their long-term satisfaction — versus what would have happened anyway?**
 
-Modern digital media platforms face continuous behavioral drift—shifts in user content preferences, engagement dynamics, and responsiveness to interventions over time. Standard machine learning models optimize for immediate proxy metrics (e.g., click-through rates) but fail to capture **true causal mechanisms** driving long-term user satisfaction, retention, and lifetime value.
+To answer that, I built the full causal ML stack from scratch: value decomposition → propensity-adjusted treatment effect estimation → counterfactual policy simulation → drift monitoring, wrapped in a typed, containerized FastAPI service with MLflow experiment tracking. Evaluated on public OTT/media benchmarks — **KuaiRec, MovieLens, MIND**.
 
-This project bridges **Deep Representation Learning**, **Causal Inference (EconML / Doubly Robust Estimators / Causal Forests)**, and **Reinforcement Learning / Contextual Bandits** to:
-1. **Model Multidimensional User Value**: Quantify perception of platform value across content relevance, session depth, and churn resistance.
-2. **Estimate Heterogeneous Treatment Effects (CATE/ITE)**: Isolate the true causal impact of platform interventions (e.g., UI prompts, personalized push notifications, recommendation shifts) using IPW, Doubly Robust estimation, and Causal Random Forests.
-3. **Simulate Counterfactual Interventions**: Evaluate alternative intervention policies offline using sequential PyTorch Transformer User Encoders without degrading live user experience.
-4. **Track & Adapt to Behavioral Drift**: Detect covariate and concept drift in user behavior dynamics over temporal windows.
+**In one line:** given a user and a candidate intervention, this system estimates *who it actually helps* — before you'd ever risk showing it to a real one.
 
 ---
 
-## 🎯 Core Research Capabilities & System Mapping
+## 🧠 The Problem, Concretely
 
-The platform implements a comprehensive suite of AI research and engineering components for user modeling and causal personalized decision-making:
+Say a platform tests a new "continue watching" nudge notification. Engagement goes up. Great — except:
 
-| Research Capability | Architecture & Implementation Details |
+- Maybe it only worked on users who were *already* about to re-engage (no causal effect, pure correlation).
+- Maybe it worked on one segment and *annoyed* another into churning — but the aggregate metric hid that.
+- Maybe it worked today, and will stop working in three months as behavior drifts.
+
+Standard predictive ML can't distinguish any of these cases. This project is my answer to that gap — built with the actual causal inference toolkit (not just A/B test averages) that's needed to get it right.
+
+---
+
+## 🔬 What's Inside
+
+| Capability | What It Actually Does |
 | :--- | :--- |
-| **OTT User Behavior Modeling** | Built modular dataset loaders for large-scale OTT micro-video & media benchmarks (**KuaiRec**, **MovieLens**, **MIND**), processing multi-modal interaction logs and session metrics. |
-| **Value-Based User Modeling** | Implemented `value_service.py` to decompose and quantify user value across satisfaction, engagement depth, and retention probability. |
-| **Causal Inference & Actionable Interventions** | Implemented `causal_service.py` featuring **Inverse Propensity Weighting (IPW)**, **Doubly Robust (DR) estimation**, and **EconML Causal Forests** for CATE/ITE estimation. |
-| **Counterfactual Reasoning & Policy Evaluation** | Developed `counterfactual_service.py` and `policy_service.py` with **Contextual Bandits** and Off-Policy Evaluation (OPE) to evaluate intervention policies. |
-| **Deep Learning & Transformers (PyTorch)** | Designed `transformer_encoder.py` (PyTorch) for learning deep sequential user state representations from high-dimensional interaction history. |
-| **Behavioral Drift & Temporal Dynamics** | Built `drift_service.py` to monitor distribution shifts and policy performance under temporal behavioral drift. |
-| **Scalable Production Engineering** | Production-ready **FastAPI** backend, **PostgreSQL 16** schema with Alembic migrations, **PyArrow/Parquet** analytics, **MLflow** experiment tracking, and **Docker Compose**. |
+| 🎯 **User Value Modeling** | Breaks "engagement" apart into engagement, satisfaction, and churn-risk components — so "value" isn't one flattened number. |
+| 📊 **Causal Effect Estimation** | Uses IPW, Doubly Robust estimation, and EconML Causal Forests to estimate *heterogeneous* treatment effects — i.e., which user segments an intervention actually helps, not just the average effect. |
+| 🧬 **Sequential User Representation** | A PyTorch Transformer encodes each user's interaction history into a dense state vector, so causal estimates have real behavioral context instead of static features. |
+| 🔮 **Counterfactual Policy Evaluation** | Simulates "what if we'd shown this instead" via Off-Policy Evaluation and Contextual Bandits — scoring new policies against logged data *before* risking them on live users. |
+| 📉 **Behavioral Drift Monitoring** | Watches for both population drift (user behavior changing) and causal drift (treatment effects changing) — because a causal model trained in January can quietly go stale by June. |
 
 ---
 
-## 🏗️ System Architecture
+## 🏗️ Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Data Layer ["Data & Benchmark Layer"]
-        A1[(KuaiRec Dense OTT Logs)]
-        A2[(MovieLens Interactions)]
-        A3[(MIND Content Logs)]
-        A4[(Synthetic Drift Generator)]
+    subgraph Data ["📥 Benchmark Data"]
+        A1[(KuaiRec)]
+        A2[(MovieLens)]
+        A3[(MIND)]
+        A4[(Synthetic Drift Gen)]
     end
 
-    subgraph Representation ["Sequential Representation Layer (PyTorch)"]
-        B1[PyTorch Transformer User Encoder]
-        B2[Sequential User Embeddings & State]
+    subgraph Rep ["🧬 Sequential Representation"]
+        B1[Transformer User Encoder]
+        B2[User State Embeddings]
     end
 
-    subgraph CausalEngine ["Causal Inference & Value Engine"]
-        C1[Value-Based Modeling Engine]
+    subgraph Causal ["📊 Causal Inference Engine"]
+        C1[Value-Based Modeling]
         C2[Propensity Score Estimator]
         C3[Doubly Robust Estimator]
-        C4[EconML Causal Forest - CATE/ITE]
+        C4[Causal Forest — CATE/ITE]
     end
 
-    subgraph Simulator ["Counterfactual & Policy Lab"]
+    subgraph Policy ["🔮 Counterfactual & Policy Lab"]
         D1[Counterfactual Simulator]
-        D2[Contextual Bandit Policy Learner]
-        D3[Off-Policy Evaluation - OPE]
+        D2[Contextual Bandit]
+        D3[Off-Policy Evaluation]
     end
 
-    subgraph Production ["Production API & Experiment Tracking"]
-        E1[FastAPI REST Router v1]
-        E2[WebSocket Real-Time Progress Manager]
-        E3[(PostgreSQL 16 Metadata DB)]
-        E4[MLflow Experiment Tracking & Registry]
+    subgraph API ["🚀 API & Tracking"]
+        E1[FastAPI Router]
+        E2[PostgreSQL 16]
+        E3[MLflow]
     end
 
-    A1 & A2 & A3 & A4 --> B1
-    B1 --> B2 --> C1 & C2
+    A1 & A2 & A3 & A4 --> B1 --> B2 --> C1 & C2
     C2 --> C3 & C4
     C3 & C4 --> D1 & D2 --> D3
-    C1 & C3 & D2 --> E1
-    E1 <--> E2
-    E1 --> E3 & E4
+    C1 & C3 & D2 --> E1 --> E2 & E3
 ```
 
 ---
 
-## 💡 Key Research & Technical Features
+## 🛠️ Tech Stack
 
-### 1. Value-Based User Modeling (`app/services/value_service.py`)
-- Formulates multi-component value metrics for OTT platform users:
-  $$\text{Value}(u) = w_1 \cdot \text{Engagement}(u) + w_2 \cdot \text{Satisfaction}(u) - w_3 \cdot \text{ChurnRisk}(u)$$
-- Quantifies user lifetime perception of value derived from content recommendations, UI interventions, and notification frequency.
-
-### 2. Causal Engine & Heterogeneous Treatment Effects (`app/causal_engine/`)
-- **Inverse Propensity Weighting (IPW)** (`ipw.py`): Corrects for selection bias in observational interaction logs.
-- **Doubly Robust (DR) Estimation** (`doubly_robust.py`): Combines propensity score models with outcome regression to ensure unbiased treatment effect estimation even if one model is misspecified.
-- **Causal Forest / EconML** (`causal_forest.py`): Non-parametric estimation of Conditional Average Treatment Effects (CATE) to discover *which user segments benefit most* from specific platform interventions.
-
-### 3. Deep Sequential User State Encoder (`app/causal_engine/models/transformer_encoder.py`)
-- Implemented in **PyTorch**, this Transformer architecture encodes user interaction sequences into dense state vectors.
-- Captures time-varying user context, genre affinities, and session dynamics needed for counterfactual simulation.
-
-### 4. Counterfactual Simulator & Policy Lab (`app/services/policy_service.py`)
-- **Off-Policy Evaluation (OPE)**: Evaluates prospective intervention policies using logged historical data without risky A/B testing on live users.
-- **Contextual Bandits** (`contextual_bandit.py`): Dynamically selects optimal interventions per user state to maximize long-term retention.
-
-### 5. Behavioral Drift Monitoring (`app/services/drift_service.py`)
-- Detects **Population Covariate Drift** ($P(X)$) and **Causal Concept Drift** ($P(Y|X, T)$) over temporal slices.
-- Triggers model retraining when intervention efficacy degrades due to shifting user behaviors.
-
----
-
-## 💻 Tech Stack & Tools
-
-- **Core Language**: Python 3.11
-- **Machine Learning & Deep Learning**: PyTorch 2.4, Scikit-Learn 1.5, NumPy, SciPy
-- **Causal Inference**: EconML 0.15, Statsmodels, SHAP
-- **Web Framework**: FastAPI 0.115, Uvicorn, WebSockets (Async IO)
-- **Database & Storage**: PostgreSQL 16, SQLAlchemy 2.0, Alembic 1.13, PyArrow 17.0 (Parquet)
-- **Experiment Tracking**: MLflow 2.16
-- **Containerization & Ops**: Docker, Docker Compose
+- **Core:** Python 3.11
+- **ML / Deep Learning:** PyTorch 2.4 · Scikit-learn 1.5 · NumPy · SciPy
+- **Causal Inference:** EconML 0.15 · Statsmodels · SHAP
+- **API / Backend:** FastAPI 0.115 · Uvicorn · WebSockets
+- **Data / Storage:** PostgreSQL 16 · SQLAlchemy 2.0 · Alembic · PyArrow (Parquet)
+- **Experiment Tracking:** MLflow
+- **Ops:** Docker · Docker Compose
 
 ---
 
@@ -138,90 +111,50 @@ backend/
 │   │   ├── experiments.py     # /experiments, WebSocket tracking
 │   │   ├── policy.py          # /policy/train, /recommend, /evaluate
 │   │   └── value.py           # /value/:user_id
-│   ├── causal_engine/         # Core AI Research Algorithms
-│   │   ├── estimators/        # IPW, Doubly Robust, Causal Forest (EconML)
-│   │   ├── models/            # PyTorch Transformer User Encoder
-│   │   └── policy/            # Contextual Bandit & OPE
+│   ├── causal_engine/         # IPW, Doubly Robust, Causal Forest, Transformer encoder, Bandit + OPE
 │   ├── data/loaders/          # KuaiRec, MovieLens, MIND, Synthetic Loaders
 │   ├── database/              # SQLAlchemy models, repositories, session
-│   ├── services/              # Business & Orchestration logic
-│   └── main.py                # FastAPI app entrypoint
-├── scripts/                   # DB init & utility scripts
-├── tests/                     # Unit & integration test suite
-├── CONNECTIONS.md             # Detailed Frontend-Backend-DB contract map
-├── Dockerfile                 # Container build definition
-├── docker-compose.yml         # Multi-container orchestration (FastAPI + Postgres)
-└── requirements.txt           # Dependency management
+│   ├── services/              # Orchestration logic
+│   └── main.py
+├── scripts/
+├── tests/
+├── Dockerfile
+├── docker-compose.yml
+└── requirements.txt
 ```
 
 ---
 
-## 🚀 Quick Start Guide
+## 🚀 Quick Start
 
-### Prerequisites
-- [Docker & Docker Compose](https://www.docker.com/) OR Python 3.11+ and PostgreSQL installed locally.
+**Docker (recommended):**
+```bash
+cd backend
+cp .env.example .env
+docker compose up --build
+```
+Interactive docs → [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### Option 1: Quickstart with Docker Compose (Recommended)
+**Local:**
+```bash
+cd backend
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python -m scripts.init_db
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
-
-2. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-
-3. Launch the environment (PostgreSQL 16 + FastAPI server):
-   ```bash
-   docker compose up --build
-   ```
-
-4. Access interactive API documentation:
-   - **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
-   - **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
-
----
-
-### Option 2: Local Development Setup
-
-1. Create and activate a Python virtual environment:
-   ```bash
-   cd backend
-   python -m venv venv
-   # Windows (PowerShell)
-   .\venv\Scripts\Activate.ps1
-   # Linux/macOS
-   source venv/bin/activate
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Initialize PostgreSQL Database:
-   ```bash
-   python -m scripts.init_db
-   ```
-
-4. Start the FastAPI development server:
-   ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
----
-
-## 🧪 Running Tests & Verification
-
-Run the test suite using `pytest`:
+**Tests:**
 ```bash
 pytest tests/ -v
 ```
 
 ---
 
-## 📄 License & Summary
+## 📌 Scope & Status
 
-Developed as an end-to-end research and engineering platform for **Causal Inference, Deep User Representation Learning, and Behavioral Drift Adaptation in OTT Media Personalization**.
+This is an independent research and systems-engineering project — not a deployed production service. Every intervention, treatment effect, and policy evaluation here runs against the public benchmark datasets above, not live user traffic. The engineering layer (typed APIs, DB migrations, containerization, experiment tracking) is built to production standards so the causal core could plausibly point at real interaction logs with modest adaptation — but that deployment doesn't exist yet, and this README won't pretend it does.
+
+## 📄 License
+
+MIT
